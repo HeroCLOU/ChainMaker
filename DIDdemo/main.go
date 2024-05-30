@@ -5,6 +5,7 @@ import (
 
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -45,67 +46,94 @@ type DID struct {
 	Black       bool      `json:"black"`
 }
 
-// did 注册
-func Register() {
-	/*  SM2编码实现--生成密钥对 */
-	priv, err := sm2.GenerateKey(rand.Reader)
-	if err != nil {
-		log.Fatal(err)
-	}
-	pub := &priv.PublicKey
-	fmt.Printf("\n---公钥---\n%v\n-----\n", pub)
+// GenerateDID 使用当前的Unix时间戳生成一个简单的DID
+func GenerateDID() string {
+	timestamp := time.Now().Unix()
+	did := fmt.Sprintf("did:zhw:%d", timestamp)
+	return did
+}
 
-	/* 生成DID */
-	//通过公钥生成一个DID
-	didexample := "did:example:123456789abcdefghi"
-	currentTimeStr := time.Now().Format("2006-01-02 15:04:05")
+func RegisterDocument(publickey *sm2.PublicKey) (string, []byte, error) {
+	//s := publickey
+	did := GenerateDID()
+	fmt.Println("Generated DID:", did)
+	currentTimeStr := time.Now().Format(time.RFC3339)
 	// 创建Proof实例
 	proof := &core.Proof{
-		Challenge:          "challenge-string",
 		Created:            currentTimeStr,
-		ExcludedFields:     []string{"excluded1", "excluded2"},
-		ProofPurpose:       "assertionMethod",
+		ProofPurpose:       "study",
 		ProofValue:         []byte("proof-value-binary"),
 		SignedFields:       []string{"field1", "field2"},
-		Type:               "Ed25519VerificationKey2018",
-		VerificationMethod: "did:example:123#key1",
+		Type:               "SM2Signature2024",
+		VerificationMethod: did + "#key1",
 	}
 
 	// 创建Service实例
-	service := &core.Service{
-		Id:              "did:example:123#service-endpoint",
-		ServiceEndpoint: "https://example.com/service-endpoint",
-		Type:            "ExampleService",
-	}
-	pubkey := "1234567"
+	// service := &core.Service{
+	// 	Id:              "did:example:123#service-endpoint",
+	// 	ServiceEndpoint: "https://example.com/service-endpoint",
+	// 	Type:            "ExampleService",
+	// }
+
+	pubBytes := sm2.Compress(publickey)
+	pubBase64 := base64.StdEncoding.EncodeToString(pubBytes)
+
 	// 创建VerificationMethod实例
 	verificationMethod := &core.VerificationMethod{
 		Address:      "did:example:123",
-		Controller:   "did:example:123",
-		Id:           "did:example:123#key1",
-		PublicKeyPem: "-----BEGIN PUBLIC KEY-----\n." + pubkey + "..\n-----END PUBLIC KEY-----",
-		Type:         "Ed25519VerificationKey2018",
+		Controller:   did,
+		Id:           did + "#key1",
+		PublicKeyPem: "-----BEGIN PUBLIC KEY-----\n" + pubBase64 + "\n-----END PUBLIC KEY-----",
+		Type:         "SM2Signature2024",
 	}
 
 	// 创建Document实例
-	doc := &core.Document{
+	document := &core.Document{
 		Context:            []string{"https://www.w3.org/ns/did/v1"},
-		Authentication:     []string{"did:example:authKey1"},
-		Controller:         []string{"did:example:controller1"},
+		Authentication:     []string{did + "#Key1"},
+		Controller:         []string{"controller:bistu", did},
 		Created:            currentTimeStr,
-		Id:                 didexample,
+		Id:                 did,
 		Proof:              []*core.Proof{proof},
-		Service:            []*core.Service{service},
-		UnionId:            map[string]string{"ctid": "did:ctid:12345"},
 		Updated:            currentTimeStr,
 		VerificationMethod: []*core.VerificationMethod{verificationMethod},
 	}
-	jsondata, err := json.MarshalIndent(doc, "", " ")
+
+	fmt.Println(document)
+
+	jsondata, err := json.MarshalIndent(document, "", " ")
 	if err != nil {
 		fmt.Printf("转化成json格式时出现错误")
 	}
+	return did, jsondata, err
+}
+
+// did 注册
+func Register() {
+	/*  SM2编码实现--生成密钥对 */
+	privatekey, err := sm2.GenerateKey(rand.Reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	publickey := &privatekey.PublicKey
+	//fmt.Printf("\n---公钥---\n%v\n-----\n", publickey)
+	//fmt.Printf("\n---私钥---\n%v\n-----\n", privatekey)
+
+	/* 生成DID */
+	//生成一个DID Document
+	// 返回的did
+	userdid, jsondata, err := RegisterDocument(publickey)
+	if err != nil {
+		fmt.Println("生成Document失败！")
+	}
+
+	str := "aacHJvb2YtdmFsdWUtYmluYXJ5"
+	strby := []byte(str)
+	fmt.Println(strby)
+
+	// 构造DID
 	did := DID{
-		ID:          "1000",
+		ID:          "1005",
 		Document:    jsondata,
 		Txid:        "",
 		DocumentURL: "",
@@ -114,43 +142,82 @@ func Register() {
 		Version:     1,
 		Black:       false,
 	}
+	//fmt.Println(did)
+
+	// 使用智能合约发起上链请求
+
+	// 将数据加入到数据库中
 	DB.Table("did").Create(&did)
+
+	/* 下面是将DID和公钥插入数据库 */
+	// DIDPublicKey 表示did_public_key表的结构体
+	type DIDPublicKey struct {
+		ID             string     `json:"id"`                    // 唯一主键
+		Type           string     `json:"type"`                  // 类型
+		Controller     string     `json:"controller"`            // 控制方
+		DID            string     `json:"did" gorm:"column:did"` // DID，这里添加gorm对数据进行强制定义
+		Address        string     `json:"address"`               // 地址
+		PublicKey      string     `json:"public_key"`            // PEM
+		Created        time.Time  `json:"created"`               // 创建时间
+		Authentication bool       `json:"authentication"`        // 是否是认证公钥
+		DeletedAt      *time.Time `json:"deleted_at"`            // 删除时间，如果未删除则为nil
+	}
+
+	pubBytes := sm2.Compress(publickey)
+	pubBase64 := base64.StdEncoding.EncodeToString(pubBytes)
+
+	// 将did和公钥进行关联
+	// 示例数据
+	example := DIDPublicKey{
+		ID:             "100087",
+		Type:           "SM2Signature2024",
+		Controller:     userdid,
+		DID:            userdid,
+		Address:        "bistu.edu.com",
+		PublicKey:      "-----BEGIN PUBLIC KEY-----\n" + pubBase64 + "\n-----END PUBLIC KEY-----",
+		Created:        time.Now(),
+		Authentication: true,
+		DeletedAt:      nil, // 如果未删除
+	}
+
+	// 将数据加入到数据库中
+	DB.Table("did_public_key").Create(&example)
+	fmt.Println(example)
+
+	/* 向区块链发起上链请求 */
+
+	/* 向数据库中插入数据 */
+
 	// 插入记录
 	// 创建VerifiableCredential实例
 	vc := &core.VerifiableCredential{
 		Context:           []string{"https://www.w3.org/2018/credentials/v1"},
-		CredentialSubject: []byte(`{"id":"did:example:studentID","name":"John Doe"}`),
+		CredentialSubject: []byte(`{"id":"did:zhw:2021","name":"ZhangHouwen"}`),
 		ExpirationDate:    "2024-05-29T12:00:00Z",
 		Holder:            "did:example:studentID",
 		Id:                "urn:uuid:3c0a79e7-55b2-4f4e-9f81-30a4e2ea1c2d",
 		IssuanceDate:      "2021-05-29T12:00:00Z",
 		Issuer:            "did:example:issuerID",
-		Proof:             []*core.Proof{proof},
-		Template:          &core.VcTemplate{ /* 需要定义VcTemplate结构 */ },
-		Type:              []string{"VerifiableCredential"},
+		//Proof:             []*core.Proof{proof},
+		Template: &core.VcTemplate{ /* 需要定义VcTemplate结构 */ },
+		Type:     []string{"VerifiableCredential"},
 	}
+	fmt.Println(vc)
 
 	// 创建VerifiablePresentation实例
 	vp := &core.VerifiablePresentation{
-		Context:              []string{"https://www.w3.org/2018/credentials/v1"},
-		ExpirationDate:       "2024-05-29T12:00:00Z",
-		Extend:               []byte(`{"additionalData":"some additional data"}`),
-		Id:                   "urn:uuid:9b1da31a-7e69-46f9-9f4c-7a3f3a4d2b31",
-		PresentationUsage:    "求职",
-		Proof:                []*core.Proof{proof},
+		Context:           []string{"https://www.w3.org/2018/credentials/v1"},
+		ExpirationDate:    "2024-05-29T12:00:00Z",
+		Extend:            []byte(`{"additionalData":"some additional data"}`),
+		Id:                "urn:uuid:9b1da31a-7e69-46f9-9f4c-7a3f3a4d2b31",
+		PresentationUsage: "求职",
+		//Proof:                []*core.Proof{proof},
 		Timestamp:            "2021-05-29T12:00:00Z",
 		Type:                 "VerifiablePresentation",
 		VerifiableCredential: []*core.VerifiableCredential{vc},
 		Verifier:             "did:example:verifierID",
 	}
-
 	fmt.Println(vp)
-	/* 注册生成Document */
-	// 根据DID创建一个ducoment文件
-
-	/* 向区块链发起上链请求 *
-
-	/* 向数据库中插入数据 */
 
 }
 
@@ -201,4 +268,6 @@ func Test() {
 func main() {
 	Initdb()
 	Register()
+
+	//Test()
 }

@@ -697,7 +697,6 @@ func (x *SODProof) Reset() {
 		ms.StoreMessageInfo(mi)
 	}
 }
-
 func (x *SODProof) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
