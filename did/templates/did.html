@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>生成信息</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      background: linear-gradient(to bottom right, #3b5998, #55acee);
+      background-size: cover;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    
+    .son2 {
+      max-width: 300px;
+      width: 100%;
+      height: 450px;
+      padding: 20px;
+      background-color: #4882c3;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    h2 {
+      text-align: center;
+    }
+    
+    .form-group {
+      margin-bottom: 13px;
+      max-width: 500px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    input[type="text"],
+    input[type="password"] {
+      width: 95%;
+      padding: 6px;
+      font-size: 16px;
+    }
+    
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      text-align: center;
+      color: #fff;
+      background-color: #0056b3;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      max-width: 380px;
+    }
+
+    .image-container {
+      margin-right: 0;
+    }
+
+    .image-container img {
+      width: 620px;
+      height: 490px;
+      display: block;
+      margin: 0;
+    }
+
+    button:hover {
+      background-color: #004080;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="image-container">
+      <img src="/static/SmartChainCertification.jpg" alt="图片">
+    </div>
+    
+    <div class="son2">
+      <h2>DID号及私钥</h2>
+      
+      <form id="registerForm" action="/login" method="get">
+        
+        <div class="form-group">
+          <label for="did">DID:{{.Did}}</label>
+        </div>
+        <div class="form-group">
+          <a id="downloadLink" href="/download/private_key" download="private_key.pem">Download Private Key</a>
+        </div>
+        <div class="form-group" style="text-align: center">
+          <input type="submit" class="btn" value="返回登录">
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <script>
+      // 添加文档加载完成后执行的函数，以便绑定事件监听器
+      document.addEventListener('DOMContentLoaded', function() {
+      // 获取"登录"按钮元素
+      var loginButton = document.getElementById('registerButton');
+      
+      // 为"登录"按钮添加点击事件监听器
+      loginButton.addEventListener('click', function(event) {
+        // 阻止表单默认的提交行为，因为我们是要跳转而不是提交
+        event.preventDefault();
+        
+        // 跳转到login.html页面
+        window.location.href = 'login.html';
+      });
+    });
+  </script>
+  <script>
+    $(document).ready(function() {
+        var privateKeyPath = "{{ .PrivateKeyPath }}";
+        if (privateKeyPath) {
+            $("#downloadLink").attr("href", "/download/" + privateKeyPath.split('/').pop());
+        }
+    });
+    </script>
+</body>
+</html>

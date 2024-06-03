@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Slider</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f2f2f2;
+    background: linear-gradient(to bottom right, #3b5998, #55acee);
+    background-size: cover;
+  }
+  #content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  }
+  #welcome {
+    font-size: 4rem;
+    font-weight: bold;
+    font-family: 'Brush Script MT', cursive;
+    letter-spacing: 3px;
+    margin-bottom: 30px;
+  }
+  #buttons {
+    margin-top: 20px;
+  }
+  button {
+    font-size: 1.8rem;
+    padding: 15px 40px;
+    margin: 0 30px;
+    background-color: #0056b3;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background-color: #004080;
+  }
+  
+</style>
+</head>
+<body>
+  <div id="content">
+    <div id="welcome">链上智慧 认证未来</div>
+    <div id="buttons">
+      <button onclick="window.location.href = '/login'">登录</button>
+      <button onclick="window.location.href = '/register'">注册</button><!-- 注册按钮 -->
+    </div>
+  </div>
+</body>
+</html>
